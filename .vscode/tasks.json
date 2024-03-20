@@ -1,0 +1,48 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "C/C++: clang++ build active file",
+            "command": "/usr/bin/clang++",
+            "args": [
+                "-fcolor-diagnostics",
+                "-fansi-escape-codes",
+                "-std=c++17",
+                "-g",
+                "main.cpp",
+                "engine/game_world.cpp",
+                "graphics/renderer.cpp",
+                "graphics/color.cpp",
+                "physics/particle.cpp",
+                "physics/particles/solid.cpp",
+                "physics/particles/liquid.cpp",
+                "physics/particles/gas.cpp",
+                "physics/particles/types/acid.cpp",
+                "physics/utils/rng.cpp",
+                "-o",
+                "${workspaceFolder}/engine",
+                "-lsfml-graphics",
+                "-lsfml-window",
+                "-lsfml-system"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/src/"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+            "detail": "compiler: /usr/bin/clang++"
+        },
+        {
+            "label": "Build via Makefile",
+            "command": "${command:makefile.buildTarget}",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
