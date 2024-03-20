@@ -5,17 +5,19 @@ A falling sand cellular automata in the style of noita and powder toy.
 ![Image1](images/Image1.png)
 
 ## Controls
-Tab = reset
-Minus = small brush
-Equals = large brush
-Right bracker = sparse brush
+Changing brush:
+- Tab = reset
+- Minus = small brush
+- Equals = large brush
+- Right bracker = sparse brush
 
-S = sand
-W = water
-D = dirt
-R = stone
-A = acid
-Q - smoke
+Changing particle type:
+- S = sand
+- W = water
+- D = dirt
+- R = stone
+- A = acid
+- Q - smoke
 
 ## Features to add
 Features:
