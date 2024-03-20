@@ -1,5 +1,7 @@
 # FallingSand
 
+A falling sand cellular automata in the style of noita and powder toy.
+
 ![Image1](images/Image1.png)
 
 ## Controls
