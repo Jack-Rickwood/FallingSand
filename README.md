@@ -16,8 +16,10 @@ Changing particle type:
 - W = water
 - D = dirt
 - R = stone
+- T = wood
 - A = acid
-- Q - smoke
+- Q = smoke
+- F = ember
 
 ## Features to add
 Features:
