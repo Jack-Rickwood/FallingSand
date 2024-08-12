@@ -97,18 +97,18 @@ public:
 
     void moveParticle(Cell& cell1, Cell& cell2, sf::Vector2i position_) {
         cell2.setParticle(cell1.particle);
-        cell2.particle->position = position_;
+        cell2.particle->setPosition(position_);
         cell1.unsetParticle();
     }
 
     void swapParticle(Cell& cell1, Cell& cell2) {
         std::shared_ptr<Particle> temp1 = cell1.particle;
         std::shared_ptr<Particle> temp2 = cell2.particle;
-        sf::Vector2i pos1 = temp1->position;
-        sf::Vector2i pos2 = temp2->position;
+        sf::Vector2i pos1 = temp1->getPosition();
+        sf::Vector2i pos2 = temp2->getPosition();
         cell2.setParticle(temp1);
-        cell2.particle->position = pos2;
+        cell2.particle->setPosition(pos2);
         cell1.setParticle(temp2);
-        cell1.particle->position = pos1;
+        cell1.particle->setPosition(pos1);
     }
 };

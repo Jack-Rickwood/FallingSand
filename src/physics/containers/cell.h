@@ -4,7 +4,8 @@
 
 enum class CellType {
     EMPTY,
-    PARTICLE
+    PARTICLE,
+    PLAYER
 };
 
 class Cell {

@@ -21,15 +21,15 @@ void Fire::particleInteractions(GameGrid& state) {
         
         if (target.type == CellType::PARTICLE) {
             float prox_adj = (i < 4 ? 1.0f : 0.25f);
-            float final_adj = calculateTempTransfer(temperature, target.particle->temperature, target.particle->getFlammability(), prox_adj, upd_per_sec);
+            float final_adj = calculateTempTransfer(temperature, target.particle->getTemperature(), target.particle->getFlammability(), prox_adj, upd_per_sec);
 
             if (final_adj > 0.0f) {
-                target.particle->temperature += final_adj;
+                target.particle->setTemperature(target.particle->getTemperature() + final_adj);
                 burn = true;
             }
 
-            if (target.particle->temperature > 100.0f) {
-                Fire spread(target.particle->position);
+            if (target.particle->getTemperature() > 100.0f) {
+                Fire spread(target.particle->getPosition());
                 target.setParticle(std::make_shared<Fire>(spread));
             }
         }
@@ -43,7 +43,7 @@ void Fire::particleInteractions(GameGrid& state) {
         Cell& curr = state.getElement(position);
         Smoke repl(position);
         curr.setParticle(std::make_shared<Smoke>(repl));
-        curr.particle->acceleration = curr.particle->getGravity();
+        curr.particle->setAcceleration(curr.particle->getGravity());
     }
 }
 
@@ -62,12 +62,12 @@ void Ember::particleInteractions(GameGrid& state) {
         
         if (target.type == CellType::PARTICLE) {
             float prox_adj = (i < 4 ? 1.0f : 0.25f);
-            float final_adj = calculateTempTransfer(temperature, target.particle->temperature, target.particle->getFlammability(), prox_adj, upd_per_sec);
+            float final_adj = calculateTempTransfer(temperature, target.particle->getTemperature(), target.particle->getFlammability(), prox_adj, upd_per_sec);
 
-            target.particle->temperature += final_adj;
+            target.particle->setTemperature(target.particle->getTemperature() + final_adj);
 
-            if (target.particle->temperature > 100.0f) {
-                Fire spread(target.particle->position);
+            if (target.particle->getTemperature() > 100.0f) {
+                Fire spread(target.particle->getPosition());
                 target.setParticle(std::make_shared<Fire>(spread));
             }
         }

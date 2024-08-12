@@ -1,0 +1,12 @@
+===== Controls ======
+Tab = reset
+Minus = small brush
+Equals = large brush
+Right bracker = sparse brush
+
+S = sand
+W = water
+D = dirt
+R = stone
+A = acid
+Q - smoke

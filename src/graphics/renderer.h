@@ -5,89 +5,69 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include "../engine/game_world.h"
-
-enum class ParticleType {
-    SAND,
-    WATER,
-    DIRT,
-    STONE,
-    ACID,
-    SMOKE,
-    EMBER,
-    WOOD
-};
-
-enum class BrushSize {
-    SMALL,
-    LARGE,
-    SPARSE
-};
+#include "../engine/world/game_world.h"
+#include "../engine/world/world_generator.h"
+#include "../physics/particle_types.h"
+#include "../input/input_handler.h"
+#include "../engine/player.h"
 
 class Renderer {
 public:
-    sf::RenderWindow window;
-    sf::View view;
-    GameWorld world;
-
-    sf::Texture main_texture, bloom_texture;
-    sf::RenderTexture bloom_mask, brightpass_texture, horizontal_blur_texture, vertical_blur_texture;
-    sf::Shader brightpass_shader, blur_shader, bloom_shader;
-
-    int win_width;
-    int win_height;
-    int aspect_ratio;
-    int framerate;
-    int world_width;
-    int world_height;
-
-    sf::Clock clock;
-    float brush_cooldown = 0;
-    float frame_time = 0;
-    int fps = 0;
-
-    ParticleType active = ParticleType::SAND;
-    BrushSize brush_size = BrushSize::LARGE;
-
-    bool left_mouse_down = false;
-
-    sf::Font font;
-
-    Renderer(int win_width_, int win_height_, int framerate_, int world_width_, int world_height_) :
+    Renderer(int win_width_, int win_height_, int framerate_, float render_scale_) :
         window(sf::VideoMode(win_width_, win_height_), "PhysicsEngine", sf::Style::Default),
-        world({world_width_, world_height_}),
-        view(sf::Vector2f(world_width_/2, world_height_/2), sf::Vector2f(world_width_, world_height_)),
-        world_width(world_width_),
-        world_height(world_height_),
+        view(
+            0.5f * sf::Vector2f(render_scale_ * win_width_, render_scale_ * win_height_),
+            sf::Vector2f(render_scale_ * win_width_, render_scale_ * win_height_)
+        ),
+        render_scale(render_scale_),
         framerate(framerate_),
         win_width(win_width_),
         win_height(win_height_)
     {
         aspect_ratio = win_width_ / win_height_;
         window.setFramerateLimit(framerate_);
-        float rel_width = 0.5f;
-        float rel_height = ((float)win_width_ * rel_width) / (float)win_height_;
-        view.setViewport(sf::FloatRect((1.0f - rel_width) / 2.0f, (1.0f - rel_height) / 2.0f, rel_width, rel_height));
         window.setView(view);
         font.loadFromFile("res/Roboto-Regular.ttf");
 
-        main_texture.create(world_width, world_height);
-        bloom_texture.create(world_width, world_height);
+        main_texture.create(view.getSize().x, view.getSize().y);
+        bloom_texture.create(view.getSize().x, view.getSize().y);
 
         brightpass_shader.loadFromFile("res/vertex.glsl", "res/brightpass.glsl");
         blur_shader.loadFromFile("res/vertex.glsl", "res/blur.glsl");
         bloom_shader.loadFromFile("res/vertex.glsl", "res/bloom.glsl");
 
-        bloom_mask.create(world_width, world_height);
-        brightpass_texture.create(world_width, world_height);
-        horizontal_blur_texture.create(world_width, world_height);
-        vertical_blur_texture.create(world_width, world_height);
+        bloom_mask.create(view.getSize().x, view.getSize().y);
+        brightpass_texture.create(view.getSize().x, view.getSize().y);
+        horizontal_blur_texture.create(view.getSize().x, view.getSize().y);
+        vertical_blur_texture.create(view.getSize().x, view.getSize().y);
     }
 
-    void render();
-    void renderGrid();
-    void renderHUD();
-    void spawnParticle();
-    void handleEvents();
-    void loop();
+    sf::Vector2i getWorldPosOfMouse(sf::Vector2i camera_pos);
+
+    void render(GameWorld& world, Player& player, int x1, int y1, int x2, int y2, int fps, InputHandler::BrushType brush_type);
+    void renderGrid(GameWorld& world, Player& player, int x1, int y1, int x2, int y2);
+    void renderPlayer(Player& player, sf::Image& main_layer, int x1, int y1);
+    void renderHUD(int fps, InputHandler::BrushType active_brush);
+
+    sf::Window& getWindow() { return window; }
+    bool windowIsOpen() { return window.isOpen(); }
+    sf::Vector2f getViewSize() { return view.getSize(); }
+
+    void showWorldGenProgress(WorldGenerator& world_generator, InputHandler& input_handler);
+
+private:
+    sf::RenderWindow window;
+    sf::View view;
+
+    sf::Texture main_texture, bloom_texture;
+    sf::RenderTexture bloom_mask, brightpass_texture, horizontal_blur_texture, vertical_blur_texture;
+    sf::Shader brightpass_shader, blur_shader, bloom_shader;
+
+    int render_scale;
+    int win_width;
+    int win_height;
+    int aspect_ratio;
+    int framerate;
+
+    sf::Font font;
 };

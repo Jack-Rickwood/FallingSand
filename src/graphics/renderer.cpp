@@ -1,28 +1,37 @@
 #include "renderer.h"
 
-void Renderer::render() {
-    renderGrid();
-    renderHUD();
+sf::Vector2i Renderer::getWorldPosOfMouse(sf::Vector2i camera_pos) {
+    sf::Vector2i mouse_pos = sf::Mouse::getPosition(window);
+    return sf::Vector2i{window.mapPixelToCoords(mouse_pos)} + camera_pos - sf::Vector2i{0.5f * view.getSize()};
 }
 
-void Renderer::renderGrid() {
+void Renderer::render(GameWorld& world, Player& player, int x1, int y1, int x2, int y2, int fps, InputHandler::BrushType brush_type) {
+    window.clear(sf::Color::Black);
+    renderGrid(world, player, x1, y1, x2, y2);
+    renderHUD(fps, brush_type);
+    window.display();
+}
+
+void Renderer::renderGrid(GameWorld& world, Player& player, int x1, int y1, int x2, int y2) {
     sf::Image main_layer, bloom_layer;
-    main_layer.create(world_width, world_height, sf::Color::Transparent);
-    bloom_layer.create(world_width, world_height, sf::Color::Transparent);
+    main_layer.create(view.getSize().x, view.getSize().y, sf::Color::Transparent);
+    bloom_layer.create(view.getSize().x, view.getSize().y, sf::Color::Transparent);
 
     auto& state = world.getState();
-    for (int y = 0; y < state.height; y++) {
-        for (int x = 0; x < state.width; x++) {
+    for (int y = y1; y < y2; y++) {
+        for (int x = x1; x < x2; x++) {
             Cell& cell = state.getElement(x, y);
             if (cell.type == CellType::PARTICLE) {
                 if (cell.particle->enableBloom()) {
-                    bloom_layer.setPixel(x, y, cell.particle->color);
+                    bloom_layer.setPixel(x - x1, y - y1, cell.particle->getColor());
                 } else {
-                    main_layer.setPixel(x, y, cell.particle->color);
+                    main_layer.setPixel(x - x1, y - y1, cell.particle->getColor());
                 }
             }
         }
     }
+
+    renderPlayer(player, main_layer, x1, y1);
 
     main_texture.loadFromImage(main_layer);
     bloom_texture.loadFromImage(bloom_layer);
@@ -62,12 +71,24 @@ void Renderer::renderGrid() {
     window.draw(sf::Sprite(bloom_mask.getTexture()), states);
 }
 
-void Renderer::renderHUD() {
+void Renderer::renderPlayer(Player& player, sf::Image& main_layer, int x1, int y1) {
+    std::array<std::array<sf::Color, CHAR_WIDTH>, CHAR_HEIGHT> particles = player.getParticles();
+    for (int x = 0; x < CHAR_WIDTH; x++) {
+        for (int y = 0; y < CHAR_HEIGHT; y++) {
+            sf::Vector2i image_pos = player.getPos() + sf::Vector2i{CHAR_WIDTH / 2, -CHAR_HEIGHT} + sf::Vector2i{x, y} - sf::Vector2i{x1, y1};
+            if (image_pos.x >= 0 && image_pos.x < main_layer.getSize().x && image_pos.y >= 0 && image_pos.y < main_layer.getSize().y) {
+                main_layer.setPixel(image_pos.x, image_pos.y, particles[y][x]);
+            }
+        }
+    }
+}
+
+void Renderer::renderHUD(int fps, InputHandler::BrushType brush_type) {
     sf::Text ptcl_text("Particle: ", font, 30);
     ptcl_text.setFillColor(sf::Color::White);
     ptcl_text.setPosition({20.0f, 10.0f});
     ptcl_text.setStyle(sf::Text::Bold);
-    switch (active) {
+    switch (brush_type.particle) {
     case ParticleType::SAND:
         ptcl_text.setString("Particle: Sand");
         break;
@@ -101,16 +122,16 @@ void Renderer::renderHUD() {
     size_text.setFillColor(sf::Color::White);
     size_text.setPosition({20.0f, 60.0f});
     size_text.setStyle(sf::Text::Bold);
-    switch (brush_size) {
-    case BrushSize::SMALL:
+    switch (brush_type.size) {
+    case InputHandler::BrushSize::SMALL:
         size_text.setString("Brush Size: Small");
         brush_radius = 1;
         break;
-    case BrushSize::LARGE:
+    case InputHandler::BrushSize::LARGE:
         size_text.setString("Brush Size: Large");
         brush_radius = 8;
         break;
-    case BrushSize::SPARSE:
+    case InputHandler::BrushSize::SPARSE:
         size_text.setString("Brush Size: Sparse");
         brush_radius = 8;
         break;
@@ -141,134 +162,50 @@ void Renderer::renderHUD() {
     window.draw(cursor);
 }
 
+void Renderer::showWorldGenProgress(WorldGenerator& world_generator, InputHandler& input_handler) {
+    // Set the default view to correctly position the progress bar and text
+    window.setView(window.getDefaultView());
 
-void Renderer::spawnParticle() {
-    sf::Vector2i mouse_pos = sf::Mouse::getPosition(window);
-    sf::Vector2i world_pos = sf::Vector2i{window.mapPixelToCoords(mouse_pos)};
+    // Calculate the position for the progress bar
+    sf::Vector2f position = sf::Vector2f((win_width - 600) / 2, (win_height + 50) / 2);
 
-    int num = 1;
-    int gap = 1;
-    if (brush_size == BrushSize::SMALL) {
-        num = 1;
-    } else if (brush_size == BrushSize::LARGE) {
-        num = 16;
-    } else if (brush_size == BrushSize::SPARSE) {
-        num = 16;
-        gap = 2;
+    // Create the progress bar background
+    sf::RectangleShape progressBarBackground(sf::Vector2f(600, 50));
+    progressBarBackground.setFillColor(sf::Color(50, 50, 50));
+    progressBarBackground.setPosition(position);
+
+    // Create the progress bar
+    sf::RectangleShape progressBar(sf::Vector2f(0, 50));
+    progressBar.setFillColor(sf::Color(100, 250, 50));
+    progressBar.setPosition(position);
+
+    // Load the font and create the text
+    sf::Font font;
+    if (!font.loadFromFile("res/Roboto-Regular.ttf")) {
+        // Handle error
+        return;
     }
+    sf::Text progressText("Generating world...", font, 24);
+    progressText.setFillColor(sf::Color::White);
+    progressText.setPosition(position.x, position.y - 40); // Position above the progress bar
 
-    int radius = num / 2;
-    sf::Vector2i center = world_pos - sf::Vector2i{radius, radius};
-    for (int y = 0; y < num; y++) {
-        for (int x = 0; x < num; x++) {
-            int dx = x - radius;
-            int dy = y - radius;
-            if (dx * dx + dy * dy <= radius * radius) {
-                if (x % gap == 0 && y % gap == 0) {
-                    if (active == ParticleType::SAND) {
-                        Sand ptcl(center + sf::Vector2i{x, y});
-                        world.addParticle(std::make_shared<Sand>(ptcl));
-                    } else if (active == ParticleType::WATER) {
-                        Water ptcl(center + sf::Vector2i{x, y});
-                        world.addParticle(std::make_shared<Water>(ptcl));
-                    } else if (active == ParticleType::DIRT) {
-                        Dirt ptcl(center + sf::Vector2i{x, y});
-                        world.addParticle(std::make_shared<Dirt>(ptcl));
-                    } else if (active == ParticleType::STONE) {
-                        Stone ptcl(center + sf::Vector2i{x, y});
-                        world.addParticle(std::make_shared<Stone>(ptcl));
-                    } else if (active == ParticleType::ACID) {
-                        Acid ptcl(center + sf::Vector2i{x, y});
-                        world.addParticle(std::make_shared<Acid>(ptcl));
-                    } else if (active == ParticleType::SMOKE) {
-                        Smoke ptcl(center + sf::Vector2i{x, y});
-                        world.addParticle(std::make_shared<Smoke>(ptcl));
-                    } else if (active == ParticleType::EMBER) {
-                        Ember ptcl(center + sf::Vector2i{x, y});
-                        world.addParticle(std::make_shared<Ember>(ptcl));
-                    } else if (active == ParticleType::WOOD) {
-                        Wood ptcl(center + sf::Vector2i{x, y});
-                        world.addParticle(std::make_shared<Wood>(ptcl));
-                    }
-                }
-            }
-        }
-    }
-}
+    int progress = 0;
+    while (progress < 100) {
+        input_handler.handleEventsLoadingScreen(window);
 
-void Renderer::handleEvents() {
-    sf::Event event{};
-    while (window.pollEvent(event)) {
-        switch (event.type) {
-        case sf::Event::Closed:
-            window.close();
-            break;
-        case sf::Event::KeyPressed:
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
-                window.close();
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
-                active = ParticleType::SAND;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
-                active = ParticleType::WATER;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-                active = ParticleType::DIRT;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::R)) {
-                active = ParticleType::STONE;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-                active = ParticleType::ACID;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q)) {
-                active = ParticleType::SMOKE;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::F)) {
-                active = ParticleType::EMBER;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
-                active = ParticleType::WOOD;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Dash)) {
-                brush_size = BrushSize::SMALL;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Equal)) {
-                brush_size = BrushSize::LARGE;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::RBracket)) {
-                brush_size = BrushSize::SPARSE;
-            } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Tab)) {
-                world.resetGrid();
-            }
-            break;
-        case sf::Event::MouseButtonPressed:
-            if (event.mouseButton.button == sf::Mouse::Left) {
-                left_mouse_down = true;
-            }
-            break;
-        case sf::Event::MouseButtonReleased:
-            if (event.mouseButton.button == sf::Mouse::Left) {
-                left_mouse_down = false;
-            }
-            break;
-        default:
-            break;
-        }
-    }
-
-    if (left_mouse_down && brush_cooldown < 0) {
-        spawnParticle();
-    }
-}
-
-void Renderer::loop() {
-    int frame_num = 0;
-
-    while (window.isOpen()) {
-        handleEvents();
-
-        world.evolve(frame_num);
-
-        frame_time = clock.getElapsedTime().asSeconds();
-        brush_cooldown -= frame_time;
-        fps = (int)(1.0f / frame_time);
-        clock.restart();
+        progressBar.setSize(sf::Vector2f(6 * progress, 50));
 
         window.clear(sf::Color::Black);
-        render();
+        window.draw(progressBarBackground);
+        window.draw(progressBar);
+        window.draw(progressText); // Draw the progress text
         window.display();
 
-        frame_num++;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));  // Adjust as needed
+
+        progress = world_generator.getGenProgress().load();
     }
+
+    // Restore the original view
+    window.setView(view);
 }

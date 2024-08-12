@@ -15,7 +15,7 @@ enum class ParticleForm {
 
 /*===== Base Particle =====*/
 class Particle {
-public:
+protected:
     sf::Vector2i position;
     sf::Vector2i velocity;
     sf::Vector2i acceleration;
@@ -26,6 +26,7 @@ public:
     bool stuck = false;
     bool particle_mode = false;
 
+public:
     Particle(sf::Vector2i position_, sf::Color color_) {
         position = position_;
         velocity = {0, 0};
@@ -41,6 +42,10 @@ public:
         velocity = {0, 0};
         acceleration = {0, 0};
         color = sf::Color::White;
+    }
+
+    virtual sf::Color getColor() {
+        return color;
     }
 
     virtual ParticleForm getForm() {
@@ -77,6 +82,38 @@ public:
     std::vector<sf::Vector2i> getPath(sf::Vector2i pos, sf::Vector2i move);
     virtual bool applyVelocity(GameGrid& state);
     float calculateTempTransfer(float temp_curr, float temp_targ, float flam, float prox_adj, int upd_per_sec);
+
+    sf::Vector2i getPosition() {
+        return position;
+    }
+
+    void setPosition(sf::Vector2i pos) {
+        position = pos;
+    }
+
+    sf::Vector2i getVelocity() {
+        return velocity;
+    }
+
+    void setVelocity(sf::Vector2i vel) {
+        velocity = vel;
+    }
+
+    sf::Vector2i getAcceleration() {
+        return acceleration;
+    }
+
+    void setAcceleration(sf::Vector2i accel) {
+        acceleration = accel;
+    }
+
+    float getTemperature() {
+        return temperature;
+    }
+
+    void setTemperature(float temp) {
+        temperature = temp;
+    }
 };
 
 
@@ -215,11 +252,91 @@ public:
     }
 };
 
+class Grass : public MovableSolid {
+private:
+    Grass(sf::Vector2i position_, int color_mod) :
+        MovableSolid(position_, sf::Color(91 + color_mod, 135 + color_mod, 49 + color_mod))
+    {}
+
+public:
+    Grass() = default;
+    Grass(sf::Vector2i position_) :
+        Grass(position_, Rand::range(-2, 2) * 3)
+    {}
+
+    float getResistance() {
+        return 0.1f;
+    }
+};
+
 class Stone : public ImmovableSolid {
+private:
+    Stone(sf::Vector2i position_, int color_mod) :
+        ImmovableSolid(position_, sf::Color(175 + color_mod, 164 + color_mod, 151 + color_mod))
+    {}
+
 public:
     Stone() = default;
     Stone(sf::Vector2i position_) :
-        ImmovableSolid(position_, sf::Color(183, 176, 156))
+        Stone(position_, Rand::range(-2, 2) * 5)
+    {}
+
+    float getResistance() {
+        return 0.8f;
+    }
+};
+
+class VolcanicRock : public ImmovableSolid {
+private:
+    VolcanicRock(sf::Vector2i position_, int color_mod) :
+        ImmovableSolid(position_, sf::Color(55, 20 + color_mod, 20 + color_mod))
+    {}
+
+public:
+    VolcanicRock() = default;
+    VolcanicRock(sf::Vector2i position_) :
+        VolcanicRock(position_, Rand::range(-2, 2) * 5)
+    {}
+
+    float getResistance() {
+        return 0.8f;
+    }
+};
+
+class Obsidian : public ImmovableSolid {
+private:
+    Obsidian(sf::Vector2i position_, int color_mod) :
+        ImmovableSolid(position_, color_mod ? sf::Color(46, 41, 58) : sf::Color(46, 49, 52))
+    {}
+
+public:
+    Obsidian() = default;
+    Obsidian(sf::Vector2i position_) :
+        Obsidian(position_, Rand::range(0, 1))
+    {}
+
+    float getResistance() {
+        return 0.8f;
+    }
+};
+
+class Iron : public ImmovableSolid {
+public:
+    Iron() = default;
+    Iron(sf::Vector2i position_) :
+        ImmovableSolid(position_, sf::Color(203, 205, 205))
+    {}
+
+    float getResistance() {
+        return 0.8f;
+    }
+};
+
+class Fetterite : public ImmovableSolid {
+public:
+    Fetterite() = default;
+    Fetterite(sf::Vector2i position_) :
+        ImmovableSolid(position_, sf::Color(0, 156, 74))
     {}
 
     float getResistance() {
@@ -250,7 +367,47 @@ public:
     void particleInteractions(GameGrid& state);
 };
 
+class Bark : public ImmovableSolid {
+public:
+    Bark() = default;
+    Bark(sf::Vector2i position_) :
+        ImmovableSolid(position_, sf::Color(70, 58, 34))
+    {}
+
+    float getResistance() {
+        return 0.8f;
+    }
+
+    float getFlammability() {
+        return 0.75f;
+    }
+};
+
+class Leaf : public ImmovableSolid {
+private:
+    Leaf(sf::Vector2i position_, int color_mod) :
+        ImmovableSolid(position_, sf::Color(88 + color_mod, 126 + color_mod, 96 + color_mod))
+    {}
+
+public:
+    Leaf() = default;
+    Leaf(sf::Vector2i position_) :
+        Leaf(position_, Rand::range(-2, 2) * 8)
+    {}
+
+    float getResistance() {
+        return 0.8f;
+    }
+
+    float getFlammability() {
+        return 0.75f;
+    }
+};
+
 class Fire : public ImmovableSolid {
+private:
+    int extinguish_ct = 0;
+
 public:
     Fire() = default;
     Fire(sf::Vector2i position_) :
@@ -258,8 +415,6 @@ public:
     {
         temperature = 100.0f;
     }
-
-    int extinguish_ct = 0;
 
     float getResistance() {
         return 0.0f;
@@ -285,6 +440,26 @@ public:
 
     float getResistance() {
         return 0.25f;
+    }
+};
+
+class Lava : public Liquid {
+public:
+    Lava() = default;
+    Lava(sf::Vector2i position_) :
+        Liquid(position_, sf::Color(207, 16, 32))
+    {}
+
+    float getDensity() {
+        return 0.5f;
+    }
+
+    float getResistance() {
+        return 0.25f;
+    }
+
+    bool enableBloom() {
+        return true;
     }
 };
 
